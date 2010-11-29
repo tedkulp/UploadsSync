@@ -11,25 +11,35 @@ class UploadsSync extends CMSModule
 	{
 		return 'UploadsSync';
 	}
+
 	function GetVersion()
 	{
 		return '0.1';
 	}
+
 	function GetAuthor()
 	{
 		return 'Ted Kulp';
 	}
+
 	function GetAuthorEmail()
 	{
 		return 'ted@cmsmadesimple.org';
 	}
+
 	function HasAdmin()
 	{
 		return true;
 	}
+
 	function MinimumCMSVersion()
 	{
 		return "1.9";
+	}
+
+	function GetDependencies()
+	{
+		return array('CMSForms' => '0.0.8');
 	}
 
 	function HasCapability($capability, $params = array())
@@ -86,9 +96,33 @@ class UploadsSync extends CMSModule
 		{
 			foreach ($ary as &$one_item)
 			{
-				$one_item['sync_hash'] = sha1(serialize($one_item));
+				$copy = $one_item;
+
+				if (isset($copy['upload_category_id']) && !isset($copy['upload_id'])) unset($copy['upload_category_id']);
+				if (isset($copy['upload_id'])) unset($copy['upload_id']);
+				if (isset($copy['id'])) unset($copy['id']);
+				if (isset($copy['create_date'])) unset($copy['create_date']);
+				if (isset($copy['modified_date'])) unset($copy['modified_date']);
+
+				$one_item['sync_hash'] = sha1(serialize($copy));
 			}
 		}
 	}
 
+	function curl_get_file_contents($URL, $username = '', $password = '')
+	{
+		$c = curl_init();
+		curl_setopt($c, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($c, CURLOPT_URL, $URL);
+		if ($username != '' && $password != '')
+		{
+			curl_setopt($c, CURLOPT_USERPWD, "$username:$password");
+			curl_setopt($c, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+		}
+		$contents = curl_exec($c);
+		curl_close($c);
+
+		if ($contents) return $contents;
+		else return FALSE;
+	}
 } //end class
