@@ -34,6 +34,25 @@ $password = $this->GetPreference('remote_server_password', '');
 
 if ($has_endpoint)
 {
+	$local_files = $this->GetListUploads();
+	$local_categories = $this->GetListCategories();
+	$local_field_defs = $this->GetListFieldDefs();
+
+	$smarty->assign('local_files', $local_files);
+	$smarty->assign('local_categories', $local_categories);
+	$smarty->assign('local_field_defs', $local_field_defs);
+
+	if (isset($params['submit_sync']))
+	{
+		foreach($params['checked'] as $k => $v)
+		{
+			if ($v == '1')
+			{
+				$this->CopyFileOverWire($endpoint_url . '/uploadsync/files' ,$k, $username, $password);
+			}
+		}
+	}
+
 	global $lang_fn;
 	$lang_fn = 'lang';
 
@@ -94,9 +113,26 @@ if ($has_endpoint)
 		}
 	}
 
-	echo '<pre>';
-	var_dump($files);
-	var_dump($categories);
-	var_dump($field_defs);
-	echo '</pre>';
+	$smarty->assign('files', $files);
+	$smarty->assign('categories', $categories);
+	$smarty->assign('field_defs', $field_defs);
+
+	$changed_files = $this->CompareFiles($local_files, $files);
+
+	foreach ($changed_files as &$one_file)
+	{
+		$one_file['checkbox'] = $this->CreateInputHidden($id, 'checked[' . $one_file['upload_id'] . ']', '0') . $this->CreateInputCheckbox($id, 'checked[' . $one_file['upload_id'] . ']', '1', '0');
+	}
+
+	$smarty->assign('changed_files', $changed_files);
+
+	$smarty->assign('start_form', $this->CreateFormStart($id, 'defaultadmin', $returnid));
+	$smarty->assign('submit', $this->CreateInputSubmit($id, 'submit_sync', $this->Lang('submit'), '', '', $this->Lang('areyousuresync')));
+	$smarty->assign('end_form', $this->CreateFormEnd());
+
+	echo $this->ProcessTemplate('admin.files.tpl');
+}
+else
+{
+	echo "<p><strong>" . $this->Lang('endpoint_only') . "</strong></p>";
 }
