@@ -27,7 +27,7 @@
 #-------------------------------------------------------------------------
 if (!isset($gCms)) exit;
 
-$endpoint_url = trim(trim($this->GetPreference('remote_server', '')), '/') . '/index.php';
+$endpoint_url = trim(trim($this->GetPreference('remote_server', '')), '/') . '/index.php?q=';
 $has_endpoint = $endpoint_url != '';
 $username = $this->GetPreference('remote_server_username', '');
 $password = $this->GetPreference('remote_server_password', '');
@@ -42,13 +42,13 @@ if ($has_endpoint)
 	$smarty->assign('local_categories', $local_categories);
 	$smarty->assign('local_field_defs', $local_field_defs);
 
-	if (isset($params['submit_sync']))
+	if (isset($params['submit_sync']) && isset($params['checked']))
 	{
 		foreach($params['checked'] as $k => $v)
 		{
 			if ($v == '1')
 			{
-				$this->CopyFileOverWire($endpoint_url . '/uploadsync/files' ,$k, $username, $password);
+				$this->CopyFileOverWire($endpoint_url . '/uploadsync/files', $k, $username, $password);
 			}
 		}
 	}

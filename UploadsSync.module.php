@@ -232,6 +232,7 @@ class UploadsSync extends CMSModule
 
 				if ($category)
 				{
+
 					//Ok, we're good.  Now let's "upload" the file through
 					//the module
 					$params = array();
@@ -243,9 +244,33 @@ class UploadsSync extends CMSModule
 					$params['category_id'] = $category['upload_category_id'];
 					$result = $uploads->AttemptUpload('', $params, 'cntnt01');
 					if ($result && $result[0])
+					{
+						//Custom fields
+						if (isset($post['custom_fields']))
+						{
+							$custom_fields = unserialize($post['custom_fields']);
+							foreach($custom_fields as $one_row)
+							{
+								$field_def_id = $db->GetOne("SELECT id FROM ".cms_db_prefix()."module_uploads_fielddefs where name = ?", array($one_row['name']));
+								if (!$field_def_id)
+								{
+									if ($db->Execute("INSERT INTO ".cms_db_prefix()."module_uploads_fielddefs (name, type, attribs, iorder, public) values (?,?,?,?,?)", array($one_row['name'], $one_row['type'], $one_row['attribs'], $one_row['iorder'], $one_row['public'])))
+									{
+										$field_def_id = $db->Insert_ID();
+									}
+								}
+								if ($field_def_id)
+								{
+									$db->Execute("INSERT INTO ".cms_db_prefix()."module_uploads_fieldvals (upload_id, fld_id, value) VALUES (?,?,?)", array($result[1], $field_def_id, $one_row['value']));
+								}
+							}
+						}
 						$rest_server->getResponse()->setResponse('true');
+					}
 					else
+					{
 						$rest_server->getResponse()->setResponse('false');
+					}
 				}
 				else
 				{
@@ -363,6 +388,9 @@ class UploadsSync extends CMSModule
 				{
 					$data[$k] = $v;
 				}
+
+				$data['custom_fields'] = serialize($db->GetAll("select fv.*, fd.* from cms_module_uploads_fieldvals fv inner join cms_module_uploads_fielddefs fd ON fd.id = fv.fld_id where fv.upload_id = ?", array($upload_id)));
+
 				curl_setopt($c, CURLOPT_RETURNTRANSFER, 1);
 				curl_setopt($c, CURLOPT_URL, $url);
 				curl_setopt($c, CURLOPT_POST, 1);
