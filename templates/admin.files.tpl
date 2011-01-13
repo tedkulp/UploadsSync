@@ -13,7 +13,7 @@
 		<td>{$one_file.checkbox}</td>
 		<td>{$one_file.upload_name}</td>
 		<td>{$one_file.upload_size}</td>
-		<td>{$one_file.upload_date|cms_date_format}</td>
+		<td>{$one_file.upload_date|date_format}</td>
 	</tr>
 {foreachelse}
 	<tr>

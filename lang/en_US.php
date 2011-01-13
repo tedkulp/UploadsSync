@@ -10,3 +10,4 @@ $lang['form_remote_server_username'] = 'Remote Server Username';
 $lang['form_remote_server_password'] = 'Remote Server Password';
 $lang['username_password_invalid'] = 'Username and/or Password is invalid!';
 $lang['submit'] = 'Submit';
+$lang['areyousuresync'] = 'Are you sure you want to sync the selected files?';
