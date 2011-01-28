@@ -157,17 +157,17 @@ class UploadsSync extends CMSModule
 				{
 					//No category?  No problem... we just add it
 					$dir = $uploads->_categoryPath($post['upload_category_path']);
-					if (dir_exists($dir))
+					if (is_dir($dir))
 					{
 						//Error?!?
-						$rest_server->getResponse()->setResponse('false');
+						$rest_server->getResponse()->setResponse('is_dir - false');
 					}
 					else
 					{
 						if (!mkdir($dir, 0777, true))
 						{
 							//Error?!?
-							//$rest_server->getResponse()->setResponse('false');
+							$rest_server->getResponse()->setResponse('mkdir - false');
 						}
 						else
 						{
@@ -201,7 +201,7 @@ class UploadsSync extends CMSModule
 							if (!$dbresult)
 							{
 								//Error?!?
-								//$rest_server->getResponse()->setResponse('false');
+								$rest_server->getResponse()->setResponse('dbresult - false');
 							}
 							else
 							{
@@ -269,18 +269,18 @@ class UploadsSync extends CMSModule
 					}
 					else
 					{
-						$rest_server->getResponse()->setResponse('false');
+						$rest_server->getResponse()->setResponse('result - false - ' . serialize($result));
 					}
 				}
 				else
 				{
-					$rest_server->getResponse()->setResponse('false');
+					$rest_server->getResponse()->setResponse('category - false');
 				}
 			}
 		}
 		else
 		{
-			$rest_server->getResponse()->setResponse('false');
+			$rest_server->getResponse()->setResponse('uploads - false');
 		}
 
 		/*
@@ -301,7 +301,8 @@ class UploadsSync extends CMSModule
 			{
 				$copy = $one_item;
 
-				if (isset($copy['upload_category_id']) && !isset($copy['upload_id'])) unset($copy['upload_category_id']);
+				//if (isset($copy['upload_category_id']) && !isset($copy['upload_id'])) unset($copy['upload_category_id']);
+				if (isset($copy['upload_category_id'])) unset($copy['upload_category_id']);
 				if (isset($copy['upload_id'])) unset($copy['upload_id']);
 				if (isset($copy['upload_ip'])) unset($copy['upload_ip']);
 				if (isset($copy['id'])) unset($copy['id']);
@@ -401,9 +402,33 @@ class UploadsSync extends CMSModule
 					curl_setopt($c, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
 				}
 				$contents = curl_exec($c);
-				//var_dump($contents);
+
+				if (!$contents)
+				{
+					$email_address = $uploads->GetPreference('email_address', '');
+					if ($email_address != '')
+					{
+						$this->EmailError($email_address, $row['upload_name'], curl_error($c));
+					}
+				}
+
 				curl_close($c);
+
+				return $contents;
 			}
+		}
+	}
+
+	function EmailError($email_address, $filename, $error_message)
+	{
+		$cmsmailer = $this->GetModuleInstance('CMSMailer');
+		if ($cmsmailer)
+		{
+			$cmsmailer->AddAddress($email_address);
+			$cmsmailer->SetBody('Problem File: ' . $filename . '<br />Error: ' . $error_message);
+			$cmsmailer->IsHTML(true);
+			$cmsmailer->SetSubject('Error Syncing Upload');
+			$cmsmailer->Send();
 		}
 	}
 

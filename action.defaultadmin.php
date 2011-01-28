@@ -56,6 +56,9 @@ $form_settings->getFieldset($this->lang('sync_settings'))->setWidget('remote_ser
 $form_settings->getFieldset($this->lang('sync_settings'))->setWidget('remote_server_username', 'text', array('preference' => 'remote_server_username',));
 $form_settings->getFieldset($this->lang('sync_settings'))->setWidget('remote_server_password', 'password', array('preference' => 'remote_server_password'));
 
+$form_settings->setFieldset($this->lang('email_settings'));
+$form_settings->getFieldset($this->lang('email_settings'))->setWidget('email_address', 'text', array('preference' => 'email_address'));
+
 if ($form_settings->isPosted())
 {
 	$form_settings->process();

@@ -5,6 +5,7 @@
 	<tr>
 		<th>&nbsp;</th>
 		<th>File Name</th>
+		<th>Summary</th>
 		<th>Size</th>
 		<th>Uploaded On</th>
 	</tr>
@@ -12,6 +13,7 @@
 	<tr>
 		<td>{$one_file.checkbox}</td>
 		<td>{$one_file.upload_name}</td>
+		<td>{$one_file.upload_summary}</td>
 		<td>{$one_file.upload_size}</td>
 		<td>{$one_file.upload_date|date_format}</td>
 	</tr>

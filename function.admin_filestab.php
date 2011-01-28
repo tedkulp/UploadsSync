@@ -48,7 +48,7 @@ if ($has_endpoint)
 		{
 			if ($v == '1')
 			{
-				$this->CopyFileOverWire($endpoint_url . '/uploadsync/files', $k, $username, $password);
+				$ret = $this->CopyFileOverWire($endpoint_url . '/uploadsync/files', $k, $username, $password);
 			}
 		}
 	}
