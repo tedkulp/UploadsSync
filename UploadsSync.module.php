@@ -302,14 +302,19 @@ class UploadsSync extends CMSModule
 				$copy = $one_item;
 
 				//if (isset($copy['upload_category_id']) && !isset($copy['upload_id'])) unset($copy['upload_category_id']);
-				if (isset($copy['upload_category_id'])) unset($copy['upload_category_id']);
-				if (isset($copy['upload_id'])) unset($copy['upload_id']);
-				if (isset($copy['upload_ip'])) unset($copy['upload_ip']);
-				if (isset($copy['id'])) unset($copy['id']);
-				if (isset($copy['upload_date'])) unset($copy['upload_date']);
-				if (isset($copy['upload_author'])) unset($copy['upload_author']);
-				if (isset($copy['create_date'])) unset($copy['create_date']);
-				if (isset($copy['modified_date'])) unset($copy['modified_date']);
+				if (array_key_exists('upload_category_id', $copy)) unset($copy['upload_category_id']);
+				if (array_key_exists('upload_id', $copy)) unset($copy['upload_id']);
+				if (array_key_exists('upload_ip', $copy)) unset($copy['upload_ip']);
+				if (array_key_exists('upload_thumbnail', $copy)) unset($copy['upload_thumbnail']);
+				if (array_key_exists('upload_summary', $copy)) unset($copy['upload_summary']);
+				if (array_key_exists('upload_description', $copy)) unset($copy['upload_description']);
+				if (array_key_exists('upload_key', $copy)) unset($copy['upload_key']);
+				if (array_key_exists('upload_size', $copy)) unset($copy['upload_size']);
+				if (array_key_exists('id', $copy)) unset($copy['id']);
+				if (array_key_exists('upload_date', $copy)) unset($copy['upload_date']);
+				if (array_key_exists('upload_author', $copy)) unset($copy['upload_author']);
+				if (array_key_exists('create_date', $copy)) unset($copy['create_date']);
+				if (array_key_exists('modified_date', $copy)) unset($copy['modified_date']);
 
 				$one_item['sync_hash'] = sha1(serialize($copy));
 			}
