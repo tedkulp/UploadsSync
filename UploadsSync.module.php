@@ -307,6 +307,7 @@ class UploadsSync extends CMSModule
 				if (isset($copy['upload_ip'])) unset($copy['upload_ip']);
 				if (isset($copy['id'])) unset($copy['id']);
 				if (isset($copy['upload_date'])) unset($copy['upload_date']);
+				if (isset($copy['upload_author'])) unset($copy['upload_author']);
 				if (isset($copy['create_date'])) unset($copy['create_date']);
 				if (isset($copy['modified_date'])) unset($copy['modified_date']);
 
