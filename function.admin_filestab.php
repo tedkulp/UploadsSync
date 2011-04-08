@@ -48,7 +48,22 @@ if ($has_endpoint)
 		{
 			if ($v == '1')
 			{
-				$ret = $this->CopyFileOverWire($endpoint_url . '/uploadsync/files', $k, $username, $password);
+				$ret = null;
+				$return_id = -1;
+				if (strpos($k, '-') !== false)
+				{
+					list($local_id, $the_remote_id) = explode('-', $k);
+					if (is_numeric($local_id) && is_numeric($the_remote_id))
+					{
+						$return_id = $the_remote_id;
+					}
+				}
+
+				$ret = $this->CopyFileOverWire($endpoint_url . '/uploadsync/files', $k, $username, $password, $return_id);
+				if ($ret)
+				{
+					$db->Execute("UPDATE ".cms_db_prefix()."module_uploads_sync SET synced = 1 WHERE upload_id = ? AND synced = 0", array($k));
+				}
 			}
 		}
 	}
@@ -60,7 +75,7 @@ if ($has_endpoint)
 
 	$categories = array();
 	$field_defs = array();
-	$files = array();
+	$remote_files = array();
 
 	$categories_url = $endpoint_url . '/uploadsync/categories';
 	$remote_test = testRemoteFile(0, lang('test_remote_url'), $categories_url, lang('test_remote_url_failed'));
@@ -96,12 +111,13 @@ if ($has_endpoint)
 		}
 	}
 
+	$local_files = $this->GetFileListFromQueue();
 	$files_url = $endpoint_url . '/uploadsync/files';
 	$remote_test = testRemoteFile(0, lang('test_remote_url'), $categories_url, lang('test_remote_url_failed'));
 	if ($remote_test->continueon)
 	{
-		$files = $this->curl_get_file_contents($files_url, $username, $password);
-		if ($files == 'Unauthorized')
+		$remote_files = $this->curl_get_file_contents($files_url, $username, $password);
+		if ($remote_files == 'Unauthorized')
 		{
 			echo "<p><strong>" . $this->Lang('username_password_invalid') . '</strong></p>';
 			return;
@@ -109,22 +125,36 @@ if ($has_endpoint)
 		else
 		{
 			//Ok, we're good.  Continue on.
-			$files = json_decode($files);
+			$remote_files = json_decode($remote_files);
 		}
 	}
 
-	$smarty->assign('files', $files);
+	$smarty->assign('local_files', $local_files);
+	$smarty->assign('remote_files', $remote_files);
 	$smarty->assign('categories', $categories);
 	$smarty->assign('field_defs', $field_defs);
 
-	$changed_files = $this->CompareFiles($local_files, $files);
+	//$changed_files = $this->CompareFiles($local_files, $remote_files);
 
-	foreach ($changed_files as &$one_file)
+	//foreach ($changed_files as &$one_file)
+	foreach ($local_files as &$one_file)
 	{
-		$one_file['checkbox'] = $this->CreateInputHidden($id, 'checked[' . $one_file['upload_id'] . ']', '0') . $this->CreateInputCheckbox($id, 'checked[' . $one_file['upload_id'] . ']', '1', '0');
+		$found = false;
+		foreach ($remote_files as $remote_file)
+		{
+			if ($remote_file->upload_name == $one_file->upload_name)
+			{
+				$one_file->checkbox = $this->CreateInputHidden($id, 'checked[' . $one_file->upload_id . '-' . $remote_file->upload_id . ']', '0') . $this->CreateInputCheckbox($id, 'checked[' . $one_file->upload_id . '-' . $remote_file->upload_id . ']', '1', '0');
+				$found = true;
+				break;
+			}
+		}
+
+		if (!$found)
+			$one_file->checkbox = $this->CreateInputHidden($id, 'checked[' . $one_file->upload_id . ']', '0') . $this->CreateInputCheckbox($id, 'checked[' . $one_file->upload_id . ']', '1', '0');
 	}
 
-	$smarty->assign('changed_files', $changed_files);
+	$smarty->assign('changed_files', $local_files);
 
 	$smarty->assign('start_form', $this->CreateFormStart($id, 'defaultadmin', $returnid));
 	$smarty->assign('submit', $this->CreateInputSubmit($id, 'submit_sync', $this->Lang('submit'), '', '', $this->Lang('areyousuresync')));

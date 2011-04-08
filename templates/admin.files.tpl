@@ -7,15 +7,17 @@
 		<th>File Name</th>
 		<th>Summary</th>
 		<th>Size</th>
+		<th>Change Type</th>
 		<th>Uploaded On</th>
 	</tr>
 {foreach from=$changed_files item='one_file'}
 	<tr>
-		<td>{$one_file.checkbox}</td>
-		<td>{$one_file.upload_name}</td>
-		<td>{$one_file.upload_summary}</td>
-		<td>{$one_file.upload_size}</td>
-		<td>{$one_file.upload_date|date_format}</td>
+		<td>{$one_file->checkbox}</td>
+		<td>{$one_file->upload_name}</td>
+		<td>{$one_file->upload_summary}</td>
+		<td>{$one_file->upload_size}</td>
+		<td>{$one_file->change_type|ucfirst}</td>
+		<td>{$one_file->upload_date|date_format}</td>
 	</tr>
 {foreachelse}
 	<tr>
