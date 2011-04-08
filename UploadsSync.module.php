@@ -40,7 +40,7 @@ class UploadsSync extends CMSModule
 
 	function GetVersion()
 	{
-		return '0.1';
+		return '0.2';
 	}
 
 	function GetAuthor()
@@ -92,7 +92,6 @@ class UploadsSync extends CMSModule
 		global $gCms;
 		$db = $gCms->GetDb();
 		$data = $db->GetAll("SELECT * FROM " . cms_db_prefix() . "module_uploads ORDER BY upload_id ASC");
-		$this->MakeRowHashes($data);
 		return $data;
 	}
 
@@ -133,6 +132,19 @@ class UploadsSync extends CMSModule
 		$data = $this->GetListFieldDefs();
 		$rest_server->getResponse()->setResponse(json_encode($data));
 		return $rest_server;
+	}
+
+	function GetFileListFromQueue()
+	{
+		global $gCms;
+		$db = $gCms->GetDb();
+		$ids = array();
+
+		$result = $db->GetAll("SELECT u.*, us.change_type FROM " . cms_db_prefix() . "module_uploads_sync us INNER JOIN " . cms_db_prefix() . "module_uploads u ON u.upload_id = us.upload_id WHERE synced = 0 ORDER BY create_date ASC");
+
+		//Make the results act like the remote ones by running
+		//it through json
+		return json_decode(json_encode($result));
 	}
 
 	function HandleNewFile($rest_server)
@@ -232,17 +244,52 @@ class UploadsSync extends CMSModule
 
 				if ($category)
 				{
+					$result = null;
 
-					//Ok, we're good.  Now let's "upload" the file through
-					//the module
-					$params = array();
-					$params['field_name'] = 'file'; //So it know's where to find the file in $_FILES
-					$params['input_destname'] = $post['upload_name'];
-					$params['input_author'] = $post['upload_author'];
-					$params['input_summary'] = $post['upload_summary'];
-					$params['input_description'] = $post['upload_description'];
-					$params['category_id'] = $category['upload_category_id'];
-					$result = $uploads->AttemptUpload('', $params, 'cntnt01');
+					if (isset($post['upload_id']))
+					{
+						$result = array(FALSE, $post['upload_id'], '');
+						$dir = $uploads->_categoryPath($category['upload_category_path']);
+						$handle_result = $uploads->_handleUpload($dir, 'file', false, $post['upload_name'], true, true, '');
+
+						if ($handle_result && $handle_result[0])
+						{
+							//We have an update -- and since the API doesn't handle this, we
+							//have to recreate it all.  Good times!
+							$newdesc = trim($post['upload_description']);
+							$newsummary = trim($post['upload_summary']);
+							$newauthor = trim($post['upload_author']);
+							$newcategory = $category['upload_category_id'];
+
+							$query = "UPDATE ".cms_db_prefix()."module_uploads SET
+											 upload_author = ?,
+											 upload_summary = ?,
+											 upload_description = ?,
+											 upload_category_id = ?
+									   WHERE upload_id = ?";
+							$dbresult = $db->Execute($query, array($post['upload_author'], $post['upload_summary'], $post['upload_description'], $category['upload_category_id'], $post['upload_id']));
+
+							// delete any existing custom fields
+							$query = 'DELETE FROM '.cms_db_prefix().'module_uploads_fieldvals WHERE upload_id = ?';
+							$db->Execute($query, array($post['upload_id']));
+
+							$result[0] = TRUE;
+						}
+					}
+					else
+					{
+						//Ok, we're good.  Now let's "upload" the file through
+						//the module
+						$params = array();
+						$params['field_name'] = 'file'; //So it know's where to find the file in $_FILES
+						$params['input_destname'] = $post['upload_name'];
+						$params['input_author'] = $post['upload_author'];
+						$params['input_summary'] = $post['upload_summary'];
+						$params['input_description'] = $post['upload_description'];
+						$params['category_id'] = $category['upload_category_id'];
+						$result = $uploads->AttemptUpload('', $params, 'cntnt01');
+					}
+
 					if ($result && $result[0])
 					{
 						//Custom fields
@@ -372,7 +419,7 @@ class UploadsSync extends CMSModule
 		else return FALSE;
 	}
 
-	function CopyFileOverWire($url, $upload_id, $username = '', $password = '')
+	function CopyFileOverWire($url, $upload_id, $username = '', $password = '', $remote_id = -1)
 	{
 		$log = array();
 
@@ -397,6 +444,9 @@ class UploadsSync extends CMSModule
 				}
 
 				$data['custom_fields'] = serialize($db->GetAll("select fv.*, fd.* from cms_module_uploads_fieldvals fv inner join cms_module_uploads_fielddefs fd ON fd.id = fv.fld_id where fv.upload_id = ?", array($upload_id)));
+
+				if ($remote_id > -1)
+					$data['upload_id'] = $remote_id;
 
 				curl_setopt($c, CURLOPT_RETURNTRANSFER, 1);
 				curl_setopt($c, CURLOPT_URL, $url);
@@ -435,6 +485,61 @@ class UploadsSync extends CMSModule
 			$cmsmailer->IsHTML(true);
 			$cmsmailer->SetSubject('Error Syncing Upload');
 			$cmsmailer->Send();
+		}
+	}
+
+	function AddToQueue($upload_id, $type)
+	{
+		global $gCms;
+		$db = $gCms->GetDb();
+		$prefix = cms_db_prefix();
+
+		//Remove any old ones
+		$this->RemoveFromQueue($upload_id);
+
+		if ($type == 'edit')
+		{
+			$count = $db->GetOne("SELECT count(*) FROM {$prefix}module_uploads_sync WHERE upload_id = ? AND synced = 1", array($upload_id));
+			if ($count == 0)
+			{
+				$type = 'add';
+			}
+		}
+
+		$db->Execute("INSERT INTO {$prefix}module_uploads_sync (upload_id, change_type, synced, create_date, modified_date)
+			VALUES (?,?,0,{$db->DBTimeStamp(time())},{$db->DBTimeStamp(time())})", array($upload_id, $type));
+	}
+
+	function RemoveFromQueue($upload_id, $all = false)
+	{
+		global $gCms;
+		$db = $gCms->GetDb();
+		$prefix = cms_db_prefix();
+
+		if ($all == true)
+			$db->Execute("DELETE FROM {$prefix}module_uploads_sync WHERE upload_id = ?", array($upload_id));
+		else
+			$db->Execute("DELETE FROM {$prefix}module_uploads_sync WHERE upload_id = ? and synced = 0", array($upload_id));
+	}
+
+	function DoEvent($originator, $eventname, &$params)
+	{
+		if ($originator == 'Uploads')
+		{
+			switch ($eventname)
+			{
+				case 'OnUpload':
+					$this->AddToQueue($params['upload_id'], 'add');
+					break;
+
+				case 'OnEditUpload':
+					$this->AddToQueue($params['upload_id'], 'edit');
+					break;
+
+				case 'OnRemove':
+					$this->RemoveFromQueue($params['id'], true);
+					break;
+			}
 		}
 	}
 
