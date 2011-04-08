@@ -50,6 +50,7 @@ if ($has_endpoint)
 			{
 				$ret = null;
 				$return_id = -1;
+				$local_id = $k;
 				$md5 = '';
 				if (strpos($k, '-') !== false)
 				{
@@ -64,7 +65,7 @@ if ($has_endpoint)
 				$ret = $this->CopyFileOverWire($endpoint_url . '/uploadsync/files', $k, $username, $password, $return_id, $md5);
 				if ($ret && trim($ret) == 'true')
 				{
-					$db->Execute("UPDATE ".cms_db_prefix()."module_uploads_sync SET synced = 1 WHERE upload_id = ? AND synced = 0", array($k));
+					$db->Execute("UPDATE ".cms_db_prefix()."module_uploads_sync SET synced = 1 WHERE upload_id = ? AND synced = 0", array($local_id));
 				}
 			}
 		}
