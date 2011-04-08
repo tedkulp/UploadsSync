@@ -50,17 +50,19 @@ if ($has_endpoint)
 			{
 				$ret = null;
 				$return_id = -1;
+				$md5 = '';
 				if (strpos($k, '-') !== false)
 				{
-					list($local_id, $the_remote_id) = explode('-', $k);
+					list($local_id, $the_remote_id, $md5) = explode('-', $k);
 					if (is_numeric($local_id) && is_numeric($the_remote_id))
 					{
 						$return_id = $the_remote_id;
 					}
 				}
 
-				$ret = $this->CopyFileOverWire($endpoint_url . '/uploadsync/files', $k, $username, $password, $return_id);
-				if ($ret)
+				$send_file = true;
+				$ret = $this->CopyFileOverWire($endpoint_url . '/uploadsync/files', $k, $username, $password, $return_id, $md5);
+				if ($ret && trim($ret) == 'true')
 				{
 					$db->Execute("UPDATE ".cms_db_prefix()."module_uploads_sync SET synced = 1 WHERE upload_id = ? AND synced = 0", array($k));
 				}
@@ -144,7 +146,7 @@ if ($has_endpoint)
 		{
 			if ($remote_file->upload_name == $one_file->upload_name)
 			{
-				$one_file->checkbox = $this->CreateInputHidden($id, 'checked[' . $one_file->upload_id . '-' . $remote_file->upload_id . ']', '0') . $this->CreateInputCheckbox($id, 'checked[' . $one_file->upload_id . '-' . $remote_file->upload_id . ']', '1', '0');
+				$one_file->checkbox = $this->CreateInputHidden($id, 'checked[' . $one_file->upload_id . '-' . $remote_file->upload_id . '-' . $remote_file->md5 . ']', '0') . $this->CreateInputCheckbox($id, 'checked[' . $one_file->upload_id . '-' . $remote_file->upload_id . '-' . $remote_file->md5 . ']', '1', '0');
 				$found = true;
 				break;
 			}

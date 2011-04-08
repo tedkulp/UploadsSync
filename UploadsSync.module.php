@@ -91,8 +91,24 @@ class UploadsSync extends CMSModule
 	{
 		global $gCms;
 		$db = $gCms->GetDb();
-		$data = $db->GetAll("SELECT * FROM " . cms_db_prefix() . "module_uploads ORDER BY upload_id ASC");
-		return $data;
+		$uploads = $this->GetModuleInstance("Uploads");
+
+		$result = $db->GetAll("SELECT * FROM " . cms_db_prefix() . "module_uploads ORDER BY upload_id ASC");
+		foreach ($result as &$one_row)
+		{
+			unset($one_row['description']);
+			$one_row['md5'] = '';
+			$dir = $uploads->_categoryPath($uploads->getCategoryPathFromID($one_row['upload_category_id']));
+			if ($dir && is_dir($dir))
+			{
+				$filename = cms_join_path($dir, $one_row['upload_name']);
+				if (is_file($filename))
+				{
+					$one_row['md5'] = md5_file($filename);
+				}
+			}
+		}
+		return $result;
 	}
 
 	function ListUploads($rest_server)
@@ -140,7 +156,24 @@ class UploadsSync extends CMSModule
 		$db = $gCms->GetDb();
 		$ids = array();
 
+		$uploads = $this->GetModuleInstance("Uploads");
+
 		$result = $db->GetAll("SELECT u.*, us.change_type FROM " . cms_db_prefix() . "module_uploads_sync us INNER JOIN " . cms_db_prefix() . "module_uploads u ON u.upload_id = us.upload_id WHERE synced = 0 ORDER BY create_date ASC");
+
+		foreach ($result as &$one_row)
+		{
+			unset($one_row['description']);
+			$one_row['md5'] = '';
+			$dir = $uploads->_categoryPath($uploads->getCategoryPathFromID($one_row['upload_category_id']));
+			if ($dir && is_dir($dir))
+			{
+				$filename = cms_join_path($dir, $one_row['upload_name']);
+				if (is_file($filename))
+				{
+					$one_row['md5'] = md5_file($filename);
+				}
+			}
+		}
 
 		//Make the results act like the remote ones by running
 		//it through json
@@ -158,7 +191,7 @@ class UploadsSync extends CMSModule
 		@ob_start();
 
 		//Test for proper content
-		if (isset($post['upload_name']) && isset($post['upload_category_name']) && isset($files['file']))
+		if (isset($post['upload_name']) && isset($post['upload_category_name']))
 		{
 			$uploads = $this->GetModuleInstance("Uploads");
 			if ($uploads)
@@ -249,8 +282,13 @@ class UploadsSync extends CMSModule
 					if (isset($post['upload_id']))
 					{
 						$result = array(FALSE, $post['upload_id'], '');
-						$dir = $uploads->_categoryPath($category['upload_category_path']);
-						$handle_result = $uploads->_handleUpload($dir, 'file', false, $post['upload_name'], true, true, '');
+						$handle_result = array(true);
+
+						if (isset($_FILES['file']))
+						{
+							$dir = $uploads->_categoryPath($category['upload_category_path']);
+							$uploads->_handleUpload($dir, 'file', false, $post['upload_name'], true, true, '');
+						}
 
 						if ($handle_result && $handle_result[0])
 						{
@@ -419,7 +457,7 @@ class UploadsSync extends CMSModule
 		else return FALSE;
 	}
 
-	function CopyFileOverWire($url, $upload_id, $username = '', $password = '', $remote_id = -1)
+	function CopyFileOverWire($url, $upload_id, $username = '', $password = '', $remote_id = -1, $md5 = '')
 	{
 		$log = array();
 
@@ -437,7 +475,10 @@ class UploadsSync extends CMSModule
 			if (is_file($path_to_file))
 			{
 				$c = curl_init();
-				$data = array('file' => '@' . $path_to_file);
+
+				if (!isset($md5) || empty($md5) || $md5 != md5_file($path_to_file))
+					$data = array('file' => '@' . $path_to_file);
+
 				foreach ($row as $k=>$v)
 				{
 					$data[$k] = $v;
